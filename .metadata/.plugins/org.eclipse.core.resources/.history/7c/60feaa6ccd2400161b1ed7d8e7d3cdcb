@@ -1,0 +1,54 @@
+/*
+ * AccelManager.c
+ *
+ *  Created on: May 28, 2016
+ *      Author: Rafal
+ */
+
+#include "stm32f4xx_hal.h"
+
+void gyroWhoAmI(SPI_HandleTypeDef *hspi, uint8_t *response) {
+
+	while(HAL_I2C_Master_Transmit(&hi2c1, (uint16_t)accelSenderAddress, (uint8_t*)accelSendBuffer, (uint16_t)1, (uint32_t)1000)!= HAL_OK)
+		     {
+		         /*
+		          * Error_Handler() function is called when Timeout error occurs.
+		          * When Acknowledge failure occurs (Slave don't acknowledge it's address)
+		          * Master restarts communication
+		          */
+
+		         if (HAL_I2C_GetError(&hi2c1) != HAL_I2C_ERROR_AF)
+		         {
+	//	             DEBUG(3, "In I2C::WriteBuffer -> error");
+	//	             Error_Handler(3);
+		         }
+
+		     }
+
+		     /* -> Wait for the end of the transfer */
+		     /* Before starting a new communication transfer, you need to check the current
+		      * state of the peripheral; if it’s busy you need to wait for the end of current
+		      * transfer before starting a new one.
+		      * For simplicity reasons, this example is just waiting till the end of the
+		      * transfer, but application may perform other tasks while transfer operation
+		      * is ongoing.
+		      */
+		  while (HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY)
+		  {
+		  }
+
+		  while(HAL_I2C_Master_Receive(&hi2c1, (uint16_t)accelSenderAddress, (uint8_t *)accelReceiveBuffer, 2, 1000) != HAL_OK)
+		    {
+		      /* Error_Handler() function is called when Timout error occurs.
+		         When Acknowledge failure ocucurs (Slave don't acknowledge it's address)
+		         Master restarts communication */
+		      if (HAL_I2C_GetError(&hi2c1) != HAL_I2C_ERROR_AF)
+		      {
+		    	  int k = 1;
+		      }
+		    }
+
+		  while (HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY)
+		      {
+		      }
+}

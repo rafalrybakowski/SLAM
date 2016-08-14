@@ -3,3 +3,6 @@
 1462282478783	Delete resource 'SLAM'
 1462282694255	Delete resource 'SLAM/Application/User/testfile'
 1462282792814	Delete resource 'SLAM/Application/User/testfile.c'
+1462290737373	Delete resource 'SLAM/Application/resources/GyroManager.c'
+1462291487740	Delete resource 'SLAM/Application/resources'
+1462291909842	Delete resource 'SLAM/Application/User/gyroscope/GyroManager.c'

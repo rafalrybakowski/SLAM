@@ -35,11 +35,14 @@
 
 /* USER CODE BEGIN Includes */
 
+#include "GyroManager.h"
+#include "AccelManager.h"
+#include "MagnetManager.h"
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
@@ -79,7 +82,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
+//  MX_SPI1_Init();
   MX_I2C1_Init();
 
   /* USER CODE BEGIN 2 */
@@ -88,13 +91,63 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  // gyro
+  uint8_t gyroSetupCheck[] = {0x00, 0x00};
+  uint8_t gyroReadCheck[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+//  gyroSetup(&hspi1, gyroSetupCheck);
+
+  //accel
+  uint8_t accelReceiveBuffer[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  accelSetup(&hi2c1);
+
   while (1)
   {
+	  //gyro
+//	  HAL_SPI_StateTypeDef state = gyroRead(&hspi1, gyroReadCheck);
+//	  if (state == HAL_SPI_STATE_READY) {
+//		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_SET);
+//	  }
+//	  if (state == HAL_SPI_STATE_RESET) {
+//	  		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,GPIO_PIN_SET);
+//	  	  }
+
+//	  int xAxis = (int16_t)(gyroReadCheck[1] + (gyroReadCheck[2] << 8));
+//	  int yAxis = (int16_t)(gyroReadCheck[3] + (gyroReadCheck[4] << 8));
+//	  int zAxis = (int16_t)(gyroReadCheck[5] + (gyroReadCheck[6] << 8));
+//
+//	  if (xAxis > 0) {
+//	  		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_15,GPIO_PIN_SET);
+//	  	  }
+//	  else {
+//	  	  	  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_15,GPIO_PIN_RESET);
+//	  	  }
+
+	  //accel
+	  accelRead(&hi2c1, accelReceiveBuffer);
+
+	  	  int xAccel = (int16_t)(accelReceiveBuffer[0] + (accelReceiveBuffer[1] << 8));
+	  	  int yAccel = (int16_t)(accelReceiveBuffer[2] + (accelReceiveBuffer[3] << 8));
+	  	  int zAccel = (int16_t)(accelReceiveBuffer[4] + (accelReceiveBuffer[5] << 8));
+
+	  	  if (xAccel > 0) {
+	  	  		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,GPIO_PIN_SET);
+	  	  	  }
+	  	  else {
+	  	  	  	  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,GPIO_PIN_RESET);
+	  	  	  }
+
+	  	  HAL_Delay(10);
+	}
+
+
+
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
 
-  }
   /* USER CODE END 3 */
 
 }
@@ -145,7 +198,7 @@ void MX_I2C1_Init(void)
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.OwnAddress1 = 54;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c1.Init.OwnAddress2 = 0;
