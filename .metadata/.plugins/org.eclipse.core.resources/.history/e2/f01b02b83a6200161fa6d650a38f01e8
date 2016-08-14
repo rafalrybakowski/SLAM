@@ -11,7 +11,7 @@
 HAL_SPI_StateTypeDef gyroWhoAmI(SPI_HandleTypeDef *hspi, uint8_t *response) {
 
 	uint8_t whoAmIRegAddr = 0b10001111;
-	uint8_t output[] = { whoAmIRegAddr, 0x00 };
+	uint8_t output[] = {whoAmIRegAddr, 0x00};
 
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 	HAL_Delay(10);
@@ -28,7 +28,7 @@ HAL_SPI_StateTypeDef gyroSetup(SPI_HandleTypeDef *hspi, uint8_t *response) {
 
 	uint8_t configRegAddr = 0b00100000;
 	uint8_t setupBytes = 0b00001111;
-	uint8_t output[] = { configRegAddr, setupBytes };
+	uint8_t output[] = {configRegAddr, setupBytes};
 
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 	HAL_Delay(10);
@@ -44,7 +44,7 @@ HAL_SPI_StateTypeDef gyroSetup(SPI_HandleTypeDef *hspi, uint8_t *response) {
 HAL_SPI_StateTypeDef gyroRead(SPI_HandleTypeDef *hspi, uint8_t *response) {
 
 	uint8_t outXLow = 0b11101000;
-	uint8_t output[] = { outXLow };
+	uint8_t output[] = {outXLow};
 
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 	HAL_Delay(10);

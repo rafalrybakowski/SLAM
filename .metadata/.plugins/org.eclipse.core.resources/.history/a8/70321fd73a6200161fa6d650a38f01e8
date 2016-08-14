@@ -94,6 +94,7 @@ int main(void) {
 	// gyro
 	uint8_t gyroSetupCheck[] = { 0x00, 0x00 };
 	uint8_t gyroReadCheck[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 	gyroSetup(&hspi1, gyroSetupCheck);
 
 	//accel

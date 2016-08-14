@@ -94,22 +94,32 @@ int main(void) {
 	// gyro
 	uint8_t gyroSetupCheck[] = { 0x00, 0x00 };
 	uint8_t gyroReadCheck[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 	gyroSetup(&hspi1, gyroSetupCheck);
 
 	//accel
-	uint8_t accelReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	uint8_t accelReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00 };
 	accelSetup(&hi2c1);
 
 	//magnet
-	uint8_t magnetReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	uint8_t magnetReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00 };
 	magnetSetup(&hi2c1);
 
 	while (1) {
 		//gyro
 		HAL_SPI_StateTypeDef state = gyroRead(&hspi1, gyroReadCheck);
-		int xAxis = (int16_t)(gyroReadCheck[1] + (gyroReadCheck[2] << 8));
-		int yAxis = (int16_t)(gyroReadCheck[3] + (gyroReadCheck[4] << 8));
-		int zAxis = (int16_t)(gyroReadCheck[5] + (gyroReadCheck[6] << 8));
+//	  if (state == HAL_SPI_STATE_READY) {
+//		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_SET);
+//	  }
+//	  if (state == HAL_SPI_STATE_RESET) {
+//	  		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,GPIO_PIN_SET);
+//	  	  }
+
+		int xAxis = (int16_t) (gyroReadCheck[1] + (gyroReadCheck[2] << 8));
+		int yAxis = (int16_t) (gyroReadCheck[3] + (gyroReadCheck[4] << 8));
+		int zAxis = (int16_t) (gyroReadCheck[5] + (gyroReadCheck[6] << 8));
 
 		if (xAxis > 0) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
@@ -119,9 +129,13 @@ int main(void) {
 
 		//accel
 		accelRead(&hi2c1, accelReceiveBuffer);
-		int xAccel = (int16_t)(accelReceiveBuffer[0] + (accelReceiveBuffer[1] << 8));
-		int yAccel = (int16_t)(accelReceiveBuffer[2] + (accelReceiveBuffer[3] << 8));
-		int zAccel = (int16_t)(accelReceiveBuffer[4] + (accelReceiveBuffer[5] << 8));
+
+		int xAccel = (int16_t) (accelReceiveBuffer[0]
+				+ (accelReceiveBuffer[1] << 8));
+		int yAccel = (int16_t) (accelReceiveBuffer[2]
+				+ (accelReceiveBuffer[3] << 8));
+		int zAccel = (int16_t) (accelReceiveBuffer[4]
+				+ (accelReceiveBuffer[5] << 8));
 
 		if (xAccel > 0) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
@@ -131,9 +145,13 @@ int main(void) {
 
 		//magnet
 		magnetRead(&hi2c1, magnetReceiveBuffer);
-		int xMagnet = (int16_t)(magnetReceiveBuffer[0] + (magnetReceiveBuffer[1] << 8));
-		int yMagnet = (int16_t)(magnetReceiveBuffer[2] + (magnetReceiveBuffer[3] << 8));
-		int zMagnet = (int16_t)(magnetReceiveBuffer[4] + (magnetReceiveBuffer[5] << 8));
+
+		int xMagnet = (int16_t) (magnetReceiveBuffer[0]
+				+ (magnetReceiveBuffer[1] << 8));
+		int xMagnet = (int16_t) (magnetReceiveBuffer[2]
+				+ (magnetReceiveBuffer[3] << 8));
+		int xMagnet = (int16_t) (magnetReceiveBuffer[4]
+				+ (magnetReceiveBuffer[5] << 8));
 
 		if (xMagnet > 0) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
@@ -157,9 +175,11 @@ void SystemClock_Config(void) {
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
-	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_RCC_PWR_CLK_ENABLE()
+	;
 
 	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
 	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
 	RCC_OscInitStruct.HSICalibrationValue = 16;
@@ -171,7 +191,8 @@ void SystemClock_Config(void) {
 	RCC_OscInitStruct.PLL.PLLQ = 8;
 	HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
@@ -180,7 +201,7 @@ void SystemClock_Config(void) {
 
 	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq() / 1000);
 
-	HAL_SYSTICK_CLKSourceConfig (SYSTICK_CLKSOURCE_HCLK);
+	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
 	/* SysTick_IRQn interrupt configuration */
 	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
@@ -244,12 +265,18 @@ void MX_GPIO_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStruct;
 
 	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOE_CLK_ENABLE();
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOD_CLK_ENABLE();
+	__HAL_RCC_GPIOE_CLK_ENABLE()
+	;
+	__HAL_RCC_GPIOC_CLK_ENABLE()
+	;
+	__HAL_RCC_GPIOH_CLK_ENABLE()
+	;
+	__HAL_RCC_GPIOA_CLK_ENABLE()
+	;
+	__HAL_RCC_GPIOB_CLK_ENABLE()
+	;
+	__HAL_RCC_GPIOD_CLK_ENABLE()
+	;
 
 	/*Configure GPIO pin : PE2 */
 	GPIO_InitStruct.Pin = GPIO_PIN_2;
@@ -347,10 +374,13 @@ void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(CS_I2C_SPI_GPIO_Port, CS_I2C_SPI_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin,
+			GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOD, LD4_Pin | LD3_Pin | LD5_Pin | LD6_Pin | Audio_RST_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOD,
+			LD4_Pin | LD3_Pin | LD5_Pin | LD6_Pin | Audio_RST_Pin,
+			GPIO_PIN_RESET);
 
 }
 

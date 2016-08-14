@@ -94,6 +94,7 @@ int main(void) {
 	// gyro
 	uint8_t gyroSetupCheck[] = { 0x00, 0x00 };
 	uint8_t gyroReadCheck[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 	gyroSetup(&hspi1, gyroSetupCheck);
 
 	//accel
@@ -107,6 +108,13 @@ int main(void) {
 	while (1) {
 		//gyro
 		HAL_SPI_StateTypeDef state = gyroRead(&hspi1, gyroReadCheck);
+//	  if (state == HAL_SPI_STATE_READY) {
+//		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_SET);
+//	  }
+//	  if (state == HAL_SPI_STATE_RESET) {
+//	  		  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,GPIO_PIN_SET);
+//	  	  }
+
 		int xAxis = (int16_t)(gyroReadCheck[1] + (gyroReadCheck[2] << 8));
 		int yAxis = (int16_t)(gyroReadCheck[3] + (gyroReadCheck[4] << 8));
 		int zAxis = (int16_t)(gyroReadCheck[5] + (gyroReadCheck[6] << 8));
@@ -119,6 +127,7 @@ int main(void) {
 
 		//accel
 		accelRead(&hi2c1, accelReceiveBuffer);
+
 		int xAccel = (int16_t)(accelReceiveBuffer[0] + (accelReceiveBuffer[1] << 8));
 		int yAccel = (int16_t)(accelReceiveBuffer[2] + (accelReceiveBuffer[3] << 8));
 		int zAccel = (int16_t)(accelReceiveBuffer[4] + (accelReceiveBuffer[5] << 8));
@@ -131,9 +140,10 @@ int main(void) {
 
 		//magnet
 		magnetRead(&hi2c1, magnetReceiveBuffer);
+
 		int xMagnet = (int16_t)(magnetReceiveBuffer[0] + (magnetReceiveBuffer[1] << 8));
-		int yMagnet = (int16_t)(magnetReceiveBuffer[2] + (magnetReceiveBuffer[3] << 8));
-		int zMagnet = (int16_t)(magnetReceiveBuffer[4] + (magnetReceiveBuffer[5] << 8));
+		int xMagnet = (int16_t)(magnetReceiveBuffer[2] + (magnetReceiveBuffer[3] << 8));
+		int xMagnet = (int16_t)(magnetReceiveBuffer[4] + (magnetReceiveBuffer[5] << 8));
 
 		if (xMagnet > 0) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
