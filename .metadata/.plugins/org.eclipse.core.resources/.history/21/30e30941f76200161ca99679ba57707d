@@ -1,0 +1,23 @@
+/*
+ * ReflectiveManager.c
+ *
+ *  Created on: Aug 15, 2016
+ *      Author: Rafal
+ */
+
+#include "stm32f4xx_hal.h"
+
+static uint8_t readingConfigs[] = { 0b00000000, 0b00000001, 0b00000010, 0b00000011, 0b00000100, 0b00000101, 0b00000110, 0b00000111 };
+
+void reflectiveRead(ADC_HandleTypeDef *hi2c, uint32_t *reading) {
+
+	if (HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK) {
+		uint32_t value = HAL_ADC_GetValue(&hadc1);
+
+		if (value > 1000) {
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+		}
+	}
+}
