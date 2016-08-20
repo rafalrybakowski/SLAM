@@ -2,20 +2,20 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="false" key="isRegEx"/>
-		<item value="I2C_WaitOnFlagUntilTimeout" key="selection"/>
+		<item value="CCR1" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
+			<item value="CCR1"/>
+			<item value="hadc1"/>
 			<item value="gyroSetupCheck"/>
 			<item value="I2C_WaitOnFlagUntilTimeout"/>
 			<item value="6"/>
 			<item value="hal_error"/>
 			<item value="GPIO_PIN_3"/>
 			<item value="hspi"/>
-			<item value="reset"/>
-			<item value="12"/>
 		</list>
 		<list key="replacehistory">
 		</list>

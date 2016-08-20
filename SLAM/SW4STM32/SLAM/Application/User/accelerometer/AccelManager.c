@@ -7,7 +7,7 @@
 
 #include "stm32f4xx_hal.h"
 
-uint16_t accelAddress = 0b00110011;
+static uint16_t accelAddress = 0b00110011;
 
 void accelSetup(I2C_HandleTypeDef *hi2c) {
 

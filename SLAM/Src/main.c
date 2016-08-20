@@ -51,6 +51,8 @@ I2C_HandleTypeDef hi2c1;
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -64,6 +66,8 @@ static void MX_SPI1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
@@ -96,11 +100,16 @@ int main(void) {
 	MX_I2C1_Init();
 	MX_TIM1_Init();
 	MX_ADC1_Init();
+	MX_TIM2_Init();
+	MX_TIM3_Init();
 
 	/* USER CODE BEGIN 2 */
 	HAL_TIM_Base_Start(&htim1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
 	HAL_ADC_Start(&hadc1);
 	/* USER CODE END 2 */
@@ -121,8 +130,6 @@ int main(void) {
 	uint8_t magnetReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	magnetSetup(&hi2c1);
 
-	// PWM
-
 	// adc
 	uint32_t reflectiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -135,10 +142,8 @@ int main(void) {
 
 		if (xAxis > 0) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-			TIM1->CCR1 = 650;
 		} else {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-			TIM1->CCR1 = 900;
 		}
 
 		//accel
@@ -168,7 +173,20 @@ int main(void) {
 		//adc
 		reflectiveRead(&hadc1, reflectiveBuffer);
 
-		if (reflectiveBuffer[0] > 2000) {
+		if (reflectiveBuffer[0] > 1000) {
+			TIM1->CCR1 = 550;
+		} else {
+			TIM1->CCR1 = 0;
+		}
+
+		if (reflectiveBuffer[7] > 1000) {
+			TIM1->CCR2 = 550;
+		} else {
+			TIM1->CCR2 = 0;
+		}
+
+// enc
+		if (TIM2->CNT > 100) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
 		} else {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -323,6 +341,62 @@ void MX_TIM1_Init(void) {
 	HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2);
 
 	HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/* TIM2 init function */
+void MX_TIM2_Init(void) {
+
+	TIM_Encoder_InitTypeDef sConfig;
+	TIM_MasterConfigTypeDef sMasterConfig;
+
+	htim2.Instance = TIM2;
+	htim2.Init.Prescaler = 0;
+	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim2.Init.Period = 1000;
+	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+	sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC1Filter = 5;
+	sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC2Filter = 5;
+	HAL_TIM_Encoder_Init(&htim2, &sConfig);
+
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig);
+
+}
+
+/* TIM3 init function */
+void MX_TIM3_Init(void) {
+
+	TIM_Encoder_InitTypeDef sConfig;
+	TIM_MasterConfigTypeDef sMasterConfig;
+
+	htim3.Instance = TIM3;
+	htim3.Init.Prescaler = 0;
+	htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim3.Init.Period = 1000;
+	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+	sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC1Filter = 5;
+	sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC2Filter = 5;
+	HAL_TIM_Encoder_Init(&htim3, &sConfig);
+
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig);
 
 }
 

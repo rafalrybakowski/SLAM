@@ -7,7 +7,7 @@
 
 #include "stm32f4xx_hal.h"
 
-uint16_t magnetAddress = 0b00111101;
+static uint16_t magnetAddress = 0b00111101;
 
 void magnetSetup(I2C_HandleTypeDef *hi2c) {
 
