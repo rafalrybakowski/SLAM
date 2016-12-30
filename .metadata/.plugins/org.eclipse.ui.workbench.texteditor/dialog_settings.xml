@@ -2,12 +2,13 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="false" key="isRegEx"/>
-		<item value="position" key="selection"/>
+		<item value="wheelCircumference" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
+			<item value="wheelCircumference"/>
 			<item value="position"/>
 			<item value="magnetReceiveBuffer"/>
 			<item value="htim3"/>
@@ -15,7 +16,6 @@
 			<item value="htim1"/>
 			<item value="getgryo"/>
 			<item value="hspi1"/>
-			<item value="struct"/>
 		</list>
 		<list key="replacehistory">
 		</list>

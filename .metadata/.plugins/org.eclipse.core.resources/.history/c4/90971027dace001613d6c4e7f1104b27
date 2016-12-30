@@ -66,7 +66,7 @@ uint32_t lastIMURead;
 uint32_t lastOdometryRead;
 uint32_t lastMotorControl;
 
-uint32_t imuReadResolution = 5;
+uint32_t imuReadResolution = 10;
 uint32_t odometryReadResolution = 10;
 uint32_t motorControlResolution = 5;
 
@@ -198,12 +198,12 @@ int main(void) {
 
 //filtering
 			volatile float xAngle = getAccAngle("x", accelReceiveBuffer);
-			volatile float xGyroRate = getGyroRate("x", gyroReceiveBuffer, imuReadClockDifference);
-			volatile float xRealAngle = (kalmanCalculate(xAngle, xGyroRate, imuReadClockDifference, &xAngleFilter) * 180 / 512) - 90;
+			volatile float xGyroRate = getGyroRate("x", gyroReceiveBuffer, imuReadResolution);
+			volatile float xRealAngle = (kalmanCalculate(xAngle, xGyroRate, imuReadResolution, &xAngleFilter) * 180 / 512) - 90;
 
 			volatile float yAngle = getAccAngle("y", accelReceiveBuffer);
-			volatile float yGyroRate = getGyroRate("y", gyroReceiveBuffer, imuReadClockDifference);
-			volatile float yRealAngle = (kalmanCalculate(yAngle, yGyroRate, imuReadClockDifference, &xAngleFilter) * 180 / 512) - 90;
+			volatile float yGyroRate = getGyroRate("y", gyroReceiveBuffer, imuReadResolution);
+			volatile float yRealAngle = (kalmanCalculate(xAngle, xGyroRate, imuReadResolution, &xAngleFilter) * 180 / 512) - 90;
 
 			//odometry read
 
@@ -211,7 +211,7 @@ int main(void) {
 			volatile float rightOdo = 0;
 
 			if (lastRightOdoRead > TIM2->CNT) {
-				float diff = fabs(lastRightOdoRead - TIM2->CNT);
+				float diff = abs(lastRightOdoRead - TIM2->CNT);
 				if (diff > 500) {
 					rightOdo = (1000 - lastRightOdoRead) + TIM2->CNT;
 				} else {
@@ -222,12 +222,13 @@ int main(void) {
 			}
 
 			if (lastLeftOdoRead > TIM3->CNT) {
-				float diff = fabs(lastLeftOdoRead - TIM3->CNT);
+				float diff = abs(lastLeftOdoRead - TIM3->CNT);
 				if (diff > 500) {
 					leftOdo = (1000 - lastLeftOdoRead) + TIM3->CNT;
 				} else {
 					leftOdo = TIM3->CNT - lastLeftOdoRead;
 				}
+				leftOdo = (1000 - lastLeftOdoRead) + TIM3->CNT;
 			} else {
 				leftOdo = TIM3->CNT - lastLeftOdoRead;
 			}
@@ -250,57 +251,36 @@ int main(void) {
 			xPosition += displacement * cos(heading / 2);
 			yPosition += displacement * sin(heading / 2);
 
-			volatile float zAngle = heading * 512.0 / M_PI;
-			volatile float zGyroRate = getGyroRate("z", gyroReceiveBuffer, imuReadClockDifference);
-			volatile float zRealAngle = kalmanCalculate(zAngle, zGyroRate, imuReadClockDifference, &zAngleFilter) * 180 / 512;
+			volatile float zAngle = heading * 180.0 / M_PI;
+			volatile float zGyroRate = getGyroRate("z", gyroReceiveBuffer, imuReadResolution);
+			volatile float zRealAngle = kalmanCalculate(zAngle, zGyroRate, imuReadResolution, &zAngleFilter) * 180 / 512;
 
-			if (zRealAngle >= -180 && zRealAngle < -90) {
+			if (heading >= -M_PI && heading < -(M_PI / 2.0)) {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
 			} else {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
 			}
-			if (zRealAngle > -90 && zRealAngle < 0) {
+			if (heading > -(M_PI / 2) && heading < 0) {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
 			} else {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
 			}
-			if (zRealAngle >= 0 && zRealAngle < 90) {
+			if (heading >= 0 && heading < (M_PI / 2.0)) {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 			} else {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
 			}
-			if (zRealAngle > 90 && zRealAngle <= 180) {
+			if (heading > (M_PI / 2.0) && heading <= M_PI) {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
 			} else {
 				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
 			}
 
-//			if (heading >= -M_PI && heading < -(M_PI / 2.0)) {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-//			} else {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-//			}
-//			if (heading > -(M_PI / 2) && heading < 0) {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-//			} else {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-//			}
-//			if (heading >= 0 && heading < (M_PI / 2.0)) {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-//			} else {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-//			}
-//			if (heading > (M_PI / 2.0) && heading <= M_PI) {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-//			} else {
-//				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-//			}
-
 			int k = 1;
 		}
 
 		volatile uint32_t lastMotorControlClockDifference = getSysTickCounterValue() - lastMotorControl;
-		if (lastMotorControlClockDifference >= motorControlResolution) {
+		if (lastMotorControlClockDifference >= imuReadResolution) {
 
 			lastMotorControl = getSysTickCounterValue();
 
@@ -328,9 +308,9 @@ int main(void) {
 			// motor control
 
 			float Kp = 0.05;
-			float Ki = 0.001;
+			float Ki = 0.01;
 			float Kd = 0.001;
-			int baseSpeed = 560;
+			int baseSpeed = 575;
 
 			int error = 4500 - position;
 			positionErrorSum += error;
@@ -340,8 +320,8 @@ int main(void) {
 //				controlSignal += Kd * abs(error - lastPositionError);
 //			}
 
-//			TIM1->CCR1 = baseSpeed - controlSignal;
-//			TIM1->CCR2 = baseSpeed + controlSignal;
+			TIM1->CCR1 = baseSpeed - controlSignal;
+			TIM1->CCR2 = baseSpeed + controlSignal;
 		}
 	}
 
