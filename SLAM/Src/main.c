@@ -40,6 +40,10 @@
 #include "MagnetManager.h"
 #include "ReflectiveManager.h"
 #include "MotorManager.h"
+#include "ClockManager.h"
+#include "Math.h"
+#include "KalmanFilter.h"
+#include "AngleCalculator.h"
 
 /* USER CODE END Includes */
 
@@ -56,6 +60,36 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+
+// main loop timing variables
+uint32_t lastIMURead;
+uint32_t lastOdometryRead;
+uint32_t lastMotorControl;
+
+uint32_t imuReadResolution = 10;
+uint32_t odometryReadResolution = 10;
+uint32_t motorControlResolution = 5;
+
+// gyro
+uint8_t gyroSetupCheck[] = { 0x00, 0x00 };
+int16_t gyroReceiveBuffer[] = { 0, 0, 0 };
+
+//accel
+int16_t accelReceiveBuffer[] = { 0, 0, 0 };
+
+//magnet
+int16_t magnetReceiveBuffer[] = { 0, 0, 0 };
+
+// adc
+uint32_t reflectiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+volatile int position = 0;
+volatile float positionErrorSum = 0;
+volatile int lastPositionError = 0;
+
+// Kalman filter
+KalmanFilter xAngleFilter = { 0.001, 0.003, 0.03, 0, 0, 0, 0, 0, 0 };
+KalmanFilter yAngleFilter = { 0.001, 0.003, 0.03, 0, 0, 0, 0, 0, 0 };
+KalmanFilter zAngleFilter = { 0.001, 0.003, 0.03, 0, 0, 0, 0, 0, 0 };
 
 /* USER CODE END PV */
 
@@ -78,6 +112,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN 0 */
 
+// filterend
 /* USER CODE END 0 */
 
 int main(void) {
@@ -104,92 +139,189 @@ int main(void) {
 	MX_TIM3_Init();
 
 	/* USER CODE BEGIN 2 */
+// peripheral init
 	HAL_TIM_Base_Start(&htim1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 
 	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
+	sysTickInit();
+
+// sensor setup
+	accelSetup(&hi2c1);
+	magnetSetup(&hi2c1);
+	gyroSetup(&hspi1, gyroSetupCheck);
+
 	HAL_ADC_Start(&hadc1);
+
+	HAL_Delay(5000);
+
+// sensor calibration
+	accelCalibrate(&hi2c1);
+	gyroCalibrate(&hspi1);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 
-	// gyro
-	uint8_t gyroSetupCheck[] = { 0x00, 0x00 };
-	uint8_t gyroReadCheck[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	gyroSetup(&hspi1, gyroSetupCheck);
+	//odometry
+	float wheelTrack = 15.6; //odstep miedzy kolami
+	float wheelRadius = 2.0; // promien kola w cm
+	float wheelCircumference = 2.0 * wheelRadius * M_PI; // 2 * R * Pi
+	float encoderScaleFactor = wheelCircumference / 1000.0;
 
-	//accel
-	uint8_t accelReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	accelSetup(&hi2c1);
+	float lastLeftOdoRead = 100.0;
+	float lastRightOdoRead = 100.0;
+	TIM2->CNT = 100;
+	TIM3->CNT = 100;
 
-	//magnet
-	uint8_t magnetReceiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	magnetSetup(&hi2c1);
-
-	// adc
-	uint32_t reflectiveBuffer[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	volatile float xPosition = 0.0;
+	volatile float yPosition = 0.0;
+	volatile float heading = 0.0;
 
 	while (1) {
-		//gyro
-		HAL_SPI_StateTypeDef state = gyroRead(&hspi1, gyroReadCheck);
-		int xAxis = (int16_t)(gyroReadCheck[1] + (gyroReadCheck[2] << 8));
-		int yAxis = (int16_t)(gyroReadCheck[3] + (gyroReadCheck[4] << 8));
-		int zAxis = (int16_t)(gyroReadCheck[5] + (gyroReadCheck[6] << 8));
 
-		if (xAxis > 0) {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-		} else {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+		volatile uint32_t imuReadClockDifference = getSysTickCounterValue() - lastIMURead;
+		if (imuReadClockDifference >= imuReadResolution) {
+
+			lastIMURead = getSysTickCounterValue();
+//gyro
+			getGyroValues(&hspi1, gyroReceiveBuffer);
+//accel
+			getAccelValues(&hi2c1, accelReceiveBuffer);
+//magnet
+			getMagnetValues(&hi2c1, magnetReceiveBuffer);
+
+//filtering
+			volatile float xAngle = getAccAngle("x", accelReceiveBuffer);
+			volatile float xGyroRate = getGyroRate("x", gyroReceiveBuffer, imuReadResolution);
+			volatile float xRealAngle = (kalmanCalculate(xAngle, xGyroRate, imuReadResolution, &xAngleFilter) * 180 / 512) - 90;
+
+			volatile float yAngle = getAccAngle("y", accelReceiveBuffer);
+			volatile float yGyroRate = getGyroRate("y", gyroReceiveBuffer, imuReadResolution);
+			volatile float yRealAngle = (kalmanCalculate(xAngle, xGyroRate, imuReadResolution, &xAngleFilter) * 180 / 512) - 90;
+
+			//odometry read
+
+			volatile float leftOdo = 0;
+			volatile float rightOdo = 0;
+
+			if (lastRightOdoRead > TIM2->CNT) {
+				float diff = abs(lastRightOdoRead - TIM2->CNT);
+				if (diff > 500) {
+					rightOdo = (1000 - lastRightOdoRead) + TIM2->CNT;
+				} else {
+					rightOdo = TIM2->CNT - lastRightOdoRead;
+				}
+			} else {
+				rightOdo = TIM2->CNT - lastRightOdoRead;
+			}
+
+			if (lastLeftOdoRead > TIM3->CNT) {
+				float diff = abs(lastLeftOdoRead - TIM3->CNT);
+				if (diff > 500) {
+					leftOdo = (1000 - lastLeftOdoRead) + TIM3->CNT;
+				} else {
+					leftOdo = TIM3->CNT - lastLeftOdoRead;
+				}
+				leftOdo = (1000 - lastLeftOdoRead) + TIM3->CNT;
+			} else {
+				leftOdo = TIM3->CNT - lastLeftOdoRead;
+			}
+
+			lastRightOdoRead = TIM2->CNT;
+			lastLeftOdoRead = TIM3->CNT;
+
+			// location check
+			volatile float displacement = (leftOdo + rightOdo) * encoderScaleFactor / 2.0;
+			volatile float rotation = (leftOdo - rightOdo) * encoderScaleFactor / wheelTrack;
+
+			heading += rotation;
+			if (heading >= M_PI) {
+				heading -= (2.0 * M_PI);
+			}
+			if (heading <= -M_PI) {
+				heading += (2.0 * M_PI);
+			}
+
+			xPosition += displacement * cos(heading / 2);
+			yPosition += displacement * sin(heading / 2);
+
+			volatile float zAngle = heading * 180.0 / M_PI;
+			volatile float zGyroRate = getGyroRate("z", gyroReceiveBuffer, imuReadResolution);
+			volatile float zRealAngle = kalmanCalculate(zAngle, zGyroRate, imuReadResolution, &zAngleFilter) * 180 / 512;
+
+			if (heading >= -M_PI && heading < -(M_PI / 2.0)) {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+			}
+			if (heading > -(M_PI / 2) && heading < 0) {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+			}
+			if (heading >= 0 && heading < (M_PI / 2.0)) {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+			}
+			if (heading > (M_PI / 2.0) && heading <= M_PI) {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+			}
+
+			int k = 1;
 		}
 
-		//accel
-		accelRead(&hi2c1, accelReceiveBuffer);
-		int xAccel = (int16_t)(accelReceiveBuffer[0] + (accelReceiveBuffer[1] << 8));
-		int yAccel = (int16_t)(accelReceiveBuffer[2] + (accelReceiveBuffer[3] << 8));
-		int zAccel = (int16_t)(accelReceiveBuffer[4] + (accelReceiveBuffer[5] << 8));
+		volatile uint32_t lastMotorControlClockDifference = getSysTickCounterValue() - lastMotorControl;
+		if (lastMotorControlClockDifference >= imuReadResolution) {
 
-		if (xAccel > 0) {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-		} else {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-		}
+			lastMotorControl = getSysTickCounterValue();
 
-		//magnet
-		magnetRead(&hi2c1, magnetReceiveBuffer);
-		int xMagnet = (int16_t)(magnetReceiveBuffer[0] + (magnetReceiveBuffer[1] << 8));
-		int yMagnet = (int16_t)(magnetReceiveBuffer[2] + (magnetReceiveBuffer[3] << 8));
-		int zMagnet = (int16_t)(magnetReceiveBuffer[4] + (magnetReceiveBuffer[5] << 8));
+			// line position calculation
+			reflectiveRead(&hadc1, reflectiveBuffer);
 
-		if (xMagnet > 0) {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-		} else {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-		}
+			volatile int sum = 0;
+			volatile int valueSum = 0;
+			volatile int minimum = 10000;
 
-		//adc
-		reflectiveRead(&hadc1, reflectiveBuffer);
+			for (int i = 0; i < 8; i++) {
+				if (reflectiveBuffer[i] < minimum) {
+					minimum = reflectiveBuffer[i];
+				}
+			}
 
-		if (reflectiveBuffer[0] > 1000) {
-			TIM1->CCR1 = 550;
-		} else {
-			TIM1->CCR1 = 0;
-		}
+			for (int i = 1; i < 9; i++) {
 
-		if (reflectiveBuffer[7] > 1000) {
-			TIM1->CCR2 = 550;
-		} else {
-			TIM1->CCR2 = 0;
-		}
+				valueSum = valueSum + reflectiveBuffer[i - 1] - minimum;
+				sum = sum + (i * 1000 * (reflectiveBuffer[i - 1] - minimum));
+			}
 
-// enc
-		if (TIM2->CNT > 100) {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-		} else {
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+			position = sum / valueSum;
+
+			// motor control
+
+			float Kp = 0.05;
+			float Ki = 0.01;
+			float Kd = 0.001;
+			int baseSpeed = 575;
+
+			int error = 4500 - position;
+			positionErrorSum += error;
+			int controlSignal = Kp * error;
+//			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
+//			if (lastPositionError != 0) {
+//				controlSignal += Kd * abs(error - lastPositionError);
+//			}
+
+			TIM1->CCR1 = baseSpeed - controlSignal;
+			TIM1->CCR2 = baseSpeed + controlSignal;
 		}
 	}
 
@@ -339,6 +471,10 @@ void MX_TIM1_Init(void) {
 	HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1);
 
 	HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2);
+
+	HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3);
+
+	HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4);
 
 	HAL_TIM_MspPostInit(&htim1);
 

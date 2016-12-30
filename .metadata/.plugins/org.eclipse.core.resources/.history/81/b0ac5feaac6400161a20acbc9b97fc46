@@ -1,9 +1,0 @@
-/*
- * MotorManager.c
- *
- *  Created on: Aug 15, 2016
- *      Author: Rafal
- */
-
-#include "stm32f4xx_hal.h"
-

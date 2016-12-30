@@ -39,8 +39,23 @@ void reflectiveRead(ADC_HandleTypeDef *hadc, uint32_t *reading) {
 			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
 		}
 
+		HAL_Delay(1);
+
 		if (HAL_ADC_PollForConversion(hadc, 1000) == HAL_OK) {
 			reading[i] = HAL_ADC_GetValue(hadc);
 		}
 	}
+
+	int minimum = 10000;
+
+	for (int i = 0; i < 8; i++) {
+		if (reading[i] < minimum) {
+			minimum = reading[i];
+		}
+	}
+
+	for (int i = 0; i < 8; i++) {
+		reading[i] -= minimum;
+	}
+
 }

@@ -9,6 +9,7 @@
 #define APPLICATION_USER_ACCELEROMETER_ACCELMANAGER_H_
 
 void accelSetup(I2C_HandleTypeDef *hi2c);
-void accelRead(I2C_HandleTypeDef *hi2c, uint8_t *response);
+void getAccelValues(I2C_HandleTypeDef *hi2c, int16_t *response);
+void accelCalibrate(I2C_HandleTypeDef *hi2c);
 
 #endif /* APPLICATION_USER_ACCELEROMETER_ACCELMANAGER_H_ */

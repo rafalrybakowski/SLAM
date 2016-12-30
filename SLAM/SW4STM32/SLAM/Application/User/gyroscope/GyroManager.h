@@ -13,6 +13,7 @@
 HAL_SPI_StateTypeDef gyroWhoAmI(SPI_HandleTypeDef *hspi, uint8_t *response);
 HAL_SPI_StateTypeDef gyroSetup(SPI_HandleTypeDef *hspi, uint8_t *response);
 
-HAL_SPI_StateTypeDef gyroRead(SPI_HandleTypeDef *hspi, uint8_t *response);
+void gyroCalibrate(SPI_HandleTypeDef *hspi);
+void getGyroValues(SPI_HandleTypeDef *hspi, int16_t *response);
 
 #endif /* APPLICATION_USER_GYROMANAGER_H_ */
