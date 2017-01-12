@@ -64,4 +64,5 @@ int getAccAngle(int axis, int16_t *accelReadings) {
 	} else {
 		return 0;
 	}
+
 }

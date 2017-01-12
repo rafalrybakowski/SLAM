@@ -79,7 +79,7 @@ void getGyroValues(SPI_HandleTypeDef *hspi, int16_t *response) {
 
 void gyroCalibrate(SPI_HandleTypeDef *hspi) {
 
-	int calibrationResolution = 25;
+	int calibrationResolution = 5;
 
 	uint8_t readings[7] = { 0, 0, 0, 0, 0, 0, 0 };
 

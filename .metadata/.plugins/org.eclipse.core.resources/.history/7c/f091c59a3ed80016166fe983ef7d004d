@@ -95,7 +95,7 @@ KalmanFilter zAngleFilter = { 0.001, 0.003, 0.03, 0, 0, 0, 0, 0, 0 };
 // map variables
 int xMapSize = 20;
 int yMapSize = 20;
-float mapResolution = 10.0;
+float mapResolution = 5.0;
 
 /* USER CODE END PV */
 
@@ -133,11 +133,11 @@ void addToMap(float x, float y, int *trackMap[xMapSize][yMapSize]) {
 	float scaledX = x / mapResolution;
 	float scaledY = y / mapResolution;
 
-	if (scaledX >= 9) {
-		scaledX = 9;
+	if (scaledX >= 10) {
+		scaledX = 10;
 	}
-	if (scaledY >= 9) {
-		scaledY = 9;
+	if (scaledY >= 10) {
+		scaledY = 10;
 	}
 
 	if (scaledX <= -10) {
@@ -231,9 +231,6 @@ int main(void) {
 	volatile int trackMap[20][20];
 
 	mapInit(trackMap);
-
-//	TIM1->CCR1 = 700;
-//	TIM1->CCR2 = 550;
 
 	while (1) {
 
@@ -365,30 +362,34 @@ int main(void) {
 			position = sum / valueSum;
 
 			// motor control
-			float Kp = 0.1;
+			float Kp = 0.04;
 			float Ki = 0.001;
 			float Kd = 0.001;
-			int baseSpeed = 600;
+			int baseSpeed = 575;
 
 			int error = 4500 - position;
 			positionErrorSum += error;
 			int controlSignal = Kp * error;
-			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
-			if (lastPositionError != 0) {
-				controlSignal += Kd * abs(error - lastPositionError);
+//			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
+//			if (lastPositionError != 0) {
+//				controlSignal += Kd * abs(error - lastPositionError);
+//			}
+
+//			TIM1->CCR1 = baseSpeed - controlSignal;
+//			TIM1->CCR2 = baseSpeed + controlSignal;
+			TIM1->CCR1 = 620;
+			TIM1->CCR2 = 580;
+			uint32_t timerValue = getSysTickCounterValue();
+			if (timerValue > timeoutHelper) {
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
 			}
-
-			TIM1->CCR1 = baseSpeed - controlSignal;
-			TIM1->CCR2 = baseSpeed + controlSignal;
-
-//			uint32_t timerValue = getSysTickCounterValue();
-//			if (timerValue > timeoutHelper) {
-//				TIM1->CCR1 = 0;
-//				TIM1->CCR2 = 0;
-//				TIM1->CCR1 = 0;
-//				TIM1->CCR2 = 0;
+//			else {
 //			}
 		}
+
 	}
 
 	/* USER CODE END WHILE */

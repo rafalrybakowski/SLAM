@@ -61,7 +61,11 @@ int getAccAngle(int axis, int16_t *accelReadings) {
 	} else if (axis == "y") {
 		int y = arctan2(accelReadings[2], accelReadings[0]);
 		return y;
+	} else if (axis == "z") {
+		int y = arctan2(accelReadings[1], accelReadings[0]);
+		return y;
 	} else {
 		return 0;
 	}
+
 }

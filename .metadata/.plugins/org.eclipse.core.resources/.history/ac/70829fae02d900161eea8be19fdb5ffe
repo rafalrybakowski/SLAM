@@ -365,7 +365,7 @@ int main(void) {
 			position = sum / valueSum;
 
 			// motor control
-			float Kp = 0.1;
+			float Kp = 0.06;
 			float Ki = 0.001;
 			float Kd = 0.001;
 			int baseSpeed = 600;

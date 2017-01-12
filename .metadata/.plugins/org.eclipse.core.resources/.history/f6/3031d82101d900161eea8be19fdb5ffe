@@ -232,8 +232,8 @@ int main(void) {
 
 	mapInit(trackMap);
 
-//	TIM1->CCR1 = 700;
-//	TIM1->CCR2 = 550;
+	TIM1->CCR1 = 700;
+	TIM1->CCR2 = 550;
 
 	while (1) {
 
@@ -365,29 +365,29 @@ int main(void) {
 			position = sum / valueSum;
 
 			// motor control
-			float Kp = 0.1;
+			float Kp = 0.04;
 			float Ki = 0.001;
 			float Kd = 0.001;
-			int baseSpeed = 600;
+			int baseSpeed = 575;
 
 			int error = 4500 - position;
 			positionErrorSum += error;
 			int controlSignal = Kp * error;
-			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
-			if (lastPositionError != 0) {
-				controlSignal += Kd * abs(error - lastPositionError);
-			}
-
-			TIM1->CCR1 = baseSpeed - controlSignal;
-			TIM1->CCR2 = baseSpeed + controlSignal;
-
-//			uint32_t timerValue = getSysTickCounterValue();
-//			if (timerValue > timeoutHelper) {
-//				TIM1->CCR1 = 0;
-//				TIM1->CCR2 = 0;
-//				TIM1->CCR1 = 0;
-//				TIM1->CCR2 = 0;
+//			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
+//			if (lastPositionError != 0) {
+//				controlSignal += Kd * abs(error - lastPositionError);
 //			}
+
+//			TIM1->CCR1 = baseSpeed - controlSignal;
+//			TIM1->CCR2 = baseSpeed + controlSignal;
+
+			uint32_t timerValue = getSysTickCounterValue();
+			if (timerValue > timeoutHelper) {
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+				TIM1->CCR1 = 0;
+				TIM1->CCR2 = 0;
+			}
 		}
 	}
 

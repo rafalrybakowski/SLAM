@@ -365,7 +365,7 @@ int main(void) {
 			position = sum / valueSum;
 
 			// motor control
-			float Kp = 0.1;
+			float Kp = 0.06;
 			float Ki = 0.001;
 			float Kd = 0.001;
 			int baseSpeed = 600;
@@ -373,10 +373,10 @@ int main(void) {
 			int error = 4500 - position;
 			positionErrorSum += error;
 			int controlSignal = Kp * error;
-			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
-			if (lastPositionError != 0) {
-				controlSignal += Kd * abs(error - lastPositionError);
-			}
+//			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
+//			if (lastPositionError != 0) {
+//				controlSignal += Kd * abs(error - lastPositionError);
+//			}
 
 			TIM1->CCR1 = baseSpeed - controlSignal;
 			TIM1->CCR2 = baseSpeed + controlSignal;
