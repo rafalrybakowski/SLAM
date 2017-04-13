@@ -66,9 +66,9 @@ uint32_t lastIMURead;
 uint32_t lastOdometryRead;
 uint32_t lastMotorControl;
 
-uint32_t imuReadResolution = 5;
+uint32_t imuReadResolution = 10;
 uint32_t odometryReadResolution = 10;
-uint32_t motorControlResolution = 5;
+uint32_t motorControlResolution = 10;
 uint32_t timeoutHelper = 15000;
 
 // gyro
@@ -95,7 +95,7 @@ KalmanFilter zAngleFilter = { 0.001, 0.003, 0.03, 0, 0, 0, 0, 0, 0 };
 // map variables
 int xMapSize = 20;
 int yMapSize = 20;
-float mapResolution = 10.0;
+float mapResolution = 5.0;
 
 /* USER CODE END PV */
 
@@ -120,6 +120,65 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 // filterend
 /* USER CODE END 0 */
+
+int mapSpeedBonus(float x, float y, float angle, int *trackMap[xMapSize][yMapSize]) {
+	int scaledX = (int) floor(x / mapResolution);
+	int scaledY = (int) floor(y / mapResolution);
+
+	if (scaledX >= 9) {
+		scaledX = 9;
+	}
+	if (scaledY >= 9) {
+		scaledY = 9;
+	}
+
+	if (scaledX <= -10) {
+		scaledX = -10;
+	}
+	if (scaledY <= -10) {
+		scaledY = -10;
+	}
+
+	int xVector[] = { 0, 0, 0 };
+	int yVector[] = { 0, 0, 0 };
+
+	if (angle >= -135 && angle < -45) { // up
+		yVector[0] = -1;
+		yVector[1] = -2;
+		yVector[2] = -3;
+	} else if (angle >= -45 && angle < 45) { // right
+		xVector[0] = 1;
+		xVector[1] = 2;
+		xVector[2] = 3;
+	} else if (angle >= 45 && angle < 135) { // down
+		yVector[0] = 1;
+		yVector[1] = 2;
+		yVector[2] = 3;
+	} else if ((angle >= 135 && angle < 180) || (angle >= -180 && angle < -135)) { //left
+		xVector[0] = -1;
+		xVector[1] = -2;
+		xVector[2] = -3;
+	}
+
+	int controlBonusSum = 0;
+	float k = 0.0;
+
+	for (int i = 0; i < 3; i++) {
+		if ((scaledX + 10 + xVector[i] < xMapSize) && (scaledX + 10 + xVector[i] >= 0) && (scaledY + 10 + yVector[i] < yMapSize)
+				&& (scaledY + 10 + yVector[i] >= 0)) {
+			controlBonusSum += trackMap[(scaledX + 10 + xVector[i])][(scaledY + 10 + yVector[i])];
+			k += 1.0;
+		}
+	}
+
+	int controlBonus = (int) floor(controlBonusSum / k);
+
+	if (controlBonus > 30) {
+		controlBonus = 30;
+	}
+
+	return controlBonus;
+}
 
 void mapInit(int *trackMap[xMapSize][yMapSize]) {
 	for (int i = 0; i < xMapSize; i++) {
@@ -229,11 +288,9 @@ int main(void) {
 	volatile float yPosition = 0.0;
 	volatile float heading = 0.0;
 	volatile int trackMap[20][20];
+	volatile float yaw = 0;
 
 	mapInit(trackMap);
-
-//	TIM1->CCR1 = 700;
-//	TIM1->CCR2 = 550;
 
 	while (1) {
 
@@ -291,17 +348,18 @@ int main(void) {
 			volatile float rotation = (leftOdo - rightOdo) * encoderScaleFactor / wheelTrack;
 
 			heading += rotation;
-			volatile float headingRest = roundfToPi(heading);
-
-			xPosition += displacement * cos(headingRest / 2);
-			yPosition += displacement * sin(headingRest / 2);
-			addToMap(xPosition, yPosition, trackMap);
 
 			volatile float zAngle = (heading / M_PI) * 512;
 			volatile float zGyroRate = getGyroRate("z", gyroReceiveBuffer, imuReadClockDifference);
 			volatile float zRealAngle = kalmanCalculate(zAngle, zGyroRate, imuReadClockDifference, &zAngleFilter) * 180 / 512;
-			volatile float yaw = roundfToPi(zRealAngle);
+			yaw = roundfToPi(zRealAngle);
 
+			volatile float headingRest = roundfToPi(heading);
+			volatile float radians = yaw * M_PI / 180.0;
+
+			xPosition += displacement * cos(headingRest / 2);
+			yPosition += displacement * sin(headingRest / 2);
+			addToMap(xPosition, yPosition, trackMap);
 			//save to map
 
 			// testing
@@ -365,21 +423,30 @@ int main(void) {
 			position = sum / valueSum;
 
 			// motor control
-			float Kp = 0.1;
+			float Kp = 0.05;
 			float Ki = 0.001;
-			float Kd = 0.001;
-			int baseSpeed = 600;
+			float Kd = 0.0000001;
+			int baseSpeed = 580;
 
 			int error = 4500 - position;
 			positionErrorSum += error;
-			int controlSignal = Kp * error;
-			controlSignal += Ki * 0.001 * motorControlResolution * positionErrorSum;
+			volatile float controlSignal = 0;
+			volatile float pComponent = Kp * error;
+			volatile float iComponent = Ki * lastMotorControlClockDifference * positionErrorSum * 0.001;
+			volatile float dComponent = 0;
 			if (lastPositionError != 0) {
-				controlSignal += Kd * abs(error - lastPositionError);
+				dComponent = Kd * abs((error - lastPositionError) / (lastMotorControlClockDifference));
 			}
 
-			TIM1->CCR1 = baseSpeed - controlSignal;
-			TIM1->CCR2 = baseSpeed + controlSignal;
+			int speedBonus = mapSpeedBonus(xPosition, yPosition, yaw, trackMap);
+
+			controlSignal = pComponent + iComponent;
+
+			TIM1->CCR1 = baseSpeed + speedBonus - controlSignal;
+			TIM1->CCR2 = baseSpeed + speedBonus + controlSignal;
+
+//			TIM1->CCR1 = 600;
+//			TIM1->CCR2 = 600;
 
 //			uint32_t timerValue = getSysTickCounterValue();
 //			if (timerValue > timeoutHelper) {

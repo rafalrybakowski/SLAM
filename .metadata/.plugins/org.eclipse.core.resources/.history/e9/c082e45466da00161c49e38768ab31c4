@@ -1,0 +1,39 @@
+/*
+ * MapManager.c
+ *
+ *  Created on: Jan 14, 2017
+ *      Author: Rafal
+ */
+
+int xMapSize = 20;
+int yMapSize = 20;
+float mapResolution = 4.0;
+
+void mapInit(int *trackMap[xMapSize][yMapSize]) {
+	for (int i = 0; i < xMapSize; i++) {
+		for (int j = 0; j < yMapSize; j++) {
+			trackMap[i][j] = 0;
+		}
+	}
+}
+
+void addToMap(float x, float y, int *trackMap[xMapSize][yMapSize]) {
+	float scaledX = x / mapResolution;
+	float scaledY = y / mapResolution;
+
+	if (scaledX >= 9) {
+		scaledX = 9;
+	}
+	if (scaledY >= 9) {
+		scaledY = 9;
+	}
+
+	if (scaledX <= -10) {
+		scaledX = -10;
+	}
+	if (scaledY <= -10) {
+		scaledY = -10;
+	}
+
+	trackMap[(int) floor(scaledX + 10)][(int) floor(scaledY + 10)] += 1;
+}
